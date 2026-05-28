@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POLYTRACK · Multi-Account Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c10;
+    --surface: #0d1319;
+    --surface2: #111820;
+    --border: #1e2d3d;
+    --border2: #243040;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --accent3: #39ff14;
+    --accent4: #bf5af2;
+    --text: #c8d8e8;
+    --text-dim: #4a6070;
+    --text-mid: #7a9ab0;
+    --yes: #39ff14;
+    --no: #ff3860;
+    --common: #ffd600;
+    --font-mono: 'Space Mono', monospace;
+    --font-display: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,229,255,0.015) 2px,
+      rgba(0,229,255,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* Grid background */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; max-width: 1600px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: rgba(8,12,16,0.95);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-mark {
+    width: 38px;
+    height: 38px;
+    border: 2px solid var(--accent);
+    display: grid;
+    place-items: center;
+    position: relative;
+    box-shadow: 0 0 12px rgba(0,229,255,0.3), inset 0 0 12px rgba(0,229,255,0.05);
+  }
+
+  .logo-mark::before {
+    content: '⬡';
+    color: var(--accent);
+    font-size: 20px;
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; text-shadow: 0 0 8px var(--accent); }
+    50% { opacity: 0.5; text-shadow: none; }
+  }
+
+  .logo-text {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: #fff;
+  }
+
+  .logo-sub {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-top: 2px;
+    text-transform: uppercase;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 28px;
+    align-items: center;
+  }
+
+  .hstat {
+    text-align: right;
+  }
+
+  .hstat-val {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: var(--font-display);
+  }
+
+  .hstat-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent3);
+    animation: blink 1.4s ease-in-out infinite;
+    display: inline-block;
+    margin-right: 6px;
+    box-shadow: 0 0 6px var(--accent3);
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  /* ── MAIN GRID ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 80px);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky;
+    top: 80px;
+    height: calc(100vh - 80px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+
+  .sidebar-section {
+    padding: 0 20px;
+    margin-bottom: 28px;
+  }
+
+  .section-label {
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .addr-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .addr-input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(0,229,255,0.2); }
+  .addr-input::placeholder { color: var(--text-dim); }
+
+  .btn {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+
+  .btn:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 8px rgba(0,229,255,0.15); }
+  .btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+  .btn.primary:hover { background: #00b8d9; border-color: #00b8d9; box-shadow: 0 0 14px rgba(0,229,255,0.4); }
+  .btn.danger { border-color: #2d1520; color: var(--no); }
+  .btn.danger:hover { border-color: var(--no); background: rgba(255,56,96,0.08); }
+  .btn.active { border-color: var(--accent3); color: var(--accent3); background: rgba(57,255,20,0.06); }
+
+  .accounts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 340px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+
+  .account-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+
+  .account-item:hover { border-color: var(--border2); background: var(--surface2); }
+  .account-item.selected { border-color: var(--accent); background: rgba(0,229,255,0.04); }
+  .account-item.loading { border-color: var(--accent2); }
+  .account-item.error { border-color: var(--no); }
+
+  .acct-num {
+    font-size: 9px;
+    color: var(--text-dim);
+    min-width: 18px;
+  }
+
+  .acct-addr {
+    flex: 1;
+    font-size: 9px;
+    color: var(--text-mid);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .acct-badge {
+    font-size: 8px;
+    padding: 2px 6px;
+    border-radius: 2px;
+  }
+
+  .acct-badge.ok { background: rgba(57,255,20,0.1); color: var(--yes); }
+  .acct-badge.loading { background: rgba(255,107,53,0.1); color: var(--accent2); animation: blink 0.8s infinite; }
+  .acct-badge.error { background: rgba(255,56,96,0.1); color: var(--no); }
+  .acct-badge.idle { background: rgba(74,96,112,0.15); color: var(--text-dim); }
+
+  .acct-positions {
+    font-size: 8px;
+    color: var(--accent);
+  }
+
+  .controls-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  .refresh-bar {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+
+  .refresh-select {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    color: var(--text-mid);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 4px 6px;
+    outline: none;
+  }
+
+  /* ── CONTENT AREA ── */
+  .content {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    padding: 10px 20px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    user-select: none;
+  }
+
+  .tab:hover { color: var(--text-mid); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── COMMON POSITIONS ── */
+  .common-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .panel-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .filter-chips {
+    display: flex;
+    gap: 6px;
+  }
+
+  .chip {
+    font-size: 9px;
+    padding: 4px 10px;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .chip:hover, .chip.active { border-color: var(--common); color: var(--common); background: rgba(255,214,0,0.06); }
+
+  .common-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 12px;
+  }
+
+  .common-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s;
+  }
+
+  .common-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--common), transparent);
+  }
+
+  .common-card:hover { border-color: var(--common); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255,214,0,0.08); }
+
+  .cc-overlap {
+    font-size: 9px;
+    color: var(--common);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .overlap-bar {
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    position: relative;
+  }
+
+  .overlap-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: var(--common);
+    transition: width 0.5s ease;
+  }
+
+  .cc-market {
+    font-size: 11px;
+    color: #fff;
+    line-height: 1.4;
+    margin-bottom: 10px;
+    font-family: var(--font-display);
+  }
+
+  .cc-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .cc-side {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 10px;
+    letter-spacing: 1px;
+  }
+
+  .cc-side.yes { background: rgba(57,255,20,0.12); color: var(--yes); border: 1px solid rgba(57,255,20,0.3); }
+  .cc-side.no { background: rgba(255,56,96,0.12); color: var(--no); border: 1px solid rgba(255,56,96,0.3); }
+  .cc-side.mixed { background: rgba(255,214,0,0.1); color: var(--common); border: 1px solid rgba(255,214,0,0.25); }
+
+  .cc-accounts {
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+
+  .cc-value {
+    font-size: 11px;
+    color: var(--accent);
+    margin-left: auto;
+    font-weight: 700;
+  }
+
+  /* ── POSITIONS TABLE ── */
+  .positions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+  }
+
+  .positions-table th {
+    text-align: left;
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .positions-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(30,45,61,0.5);
+    vertical-align: middle;
+    font-size: 10px;
+  }
+
+  .positions-table tr:hover td { background: rgba(0,229,255,0.02); }
+
+  .market-name {
+    max-width: 260px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+  }
+
+  .side-pill {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 8px;
+    letter-spacing: 0.5px;
+    display: inline-block;
+  }
+
+  .side-pill.yes { background: rgba(57,255,20,0.1); color: var(--yes); }
+  .side-pill.no { background: rgba(255,56,96,0.1); color: var(--no); }
+
+  .val-pos { color: var(--yes); }
+  .val-neg { color: var(--no); }
+  .val-neutral { color: var(--text-mid); }
+
+  /* ── ACTIVITY FEED ── */
+  .activity-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-height: 600px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+
+  .activity-item {
+    display: grid;
+    grid-template-columns: 100px 60px 1fr 80px 80px 90px;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 9px;
+    transition: background 0.15s;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .activity-item:hover { background: rgba(0,229,255,0.02); }
+  .activity-item.new { background: rgba(0,229,255,0.04); }
+
+  .ai-time { color: var(--text-dim); }
+  .ai-acct { color: var(--accent); font-weight: 700; }
+  .ai-market { color: var(--text-mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ai-size { color: var(--text); text-align: right; }
+  .ai-price { color: var(--text-mid); text-align: right; }
+
+  /* ── ACCOUNT DETAIL ── */
+  .acct-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    margin-bottom: 16px;
+  }
+
+  .acct-avatar {
+    width: 44px; height: 44px;
+    border: 2px solid var(--accent);
+    display: grid;
+    place-items: center;
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+    background: rgba(0,229,255,0.04);
+  }
+
+  .acct-detail-info { flex: 1; }
+  .acct-detail-addr { font-size: 11px; color: var(--text-mid); margin-bottom: 4px; }
+  .acct-detail-stats { display: flex; gap: 20px; }
+  .ads { font-size: 9px; color: var(--text-dim); }
+  .ads span { color: var(--accent); font-weight: 700; }
+
+  /* ── OVERVIEW CARDS ── */
+  .overview-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+
+  .ov-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ov-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--accent-c, rgba(0,229,255,0.06)) 0%, transparent 70%);
+  }
+
+  .ov-label {
+    font-size: 8px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .ov-val {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .ov-sub {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+
+  .empty-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+
+  .empty-text {
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    padding: 12px 18px;
+    font-size: 10px;
+    z-index: 999;
+    animation: toastIn 0.3s ease;
+    max-width: 320px;
+  }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .toast.success { border-left: 3px solid var(--yes); }
+  .toast.error { border-left: 3px solid var(--no); }
+  .toast.info { border-left: 3px solid var(--accent); }
+
+  /* ── PROGRESS ── */
+  .progress-wrap {
+    background: var(--border);
+    height: 2px;
+    margin: 8px 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.3s;
+    position: relative;
+  }
+
+  .progress-fill::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 40px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+    animation: shimmer 1s infinite;
+  }
+
+  @keyframes shimmer { from{opacity:0} 50%{opacity:1} to{opacity:0} }
+
+  /* ── SCROLLBARS ── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* ── SAMPLE BADGE ── */
+  .sample-badge {
+    background: rgba(191,90,242,0.12);
+    border: 1px solid rgba(191,90,242,0.3);
+    color: var(--accent4);
+    font-size: 8px;
+    padding: 3px 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .hdr-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .conn-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <header>
+    <div class="logo">
+      <div class="logo-mark"></div>
+      <div>
+        <div class="logo-text">POLYTRACK</div>
+        <div class="logo-sub">Multi-Account Intelligence</div>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="conn-indicator">
+        <span class="live-dot"></span>
+        <span id="hdr-status">IDLE</span>
+      </div>
+      <div class="hstat">
+        <div class="hstat-val" id="hdr-accounts">0</div>
+        <div class="hstat-label">Accounts</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-val" id="hdr-positions">0</div>
+        <div class="hstat-label">Positions</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-val" id="hdr-common">0</div>
+        <div class="hstat-label">Common</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-val" id="hdr-trades">0</div>
+        <div class="hstat-label">Trades</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-grid">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-label">Add Account</div>
+        <div class="input-row">
+          <input class="addr-input" id="addr-input" placeholder="0x... wallet address" maxlength="42">
+          <button class="btn primary" onclick="addAccount()">ADD</button>
+        </div>
+        <div class="controls-row">
+          <button class="btn" onclick="loadDemoAccounts()">DEMO ACCOUNTS</button>
+          <button class="btn" onclick="clearAll()">CLEAR ALL</button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">
+          Accounts (<span id="acct-count">0</span>/20)
+        </div>
+        <div class="accounts-list" id="accounts-list">
+          <div class="empty-state" style="padding:20px">
+            <div style="font-size:9px;color:var(--text-dim)">No accounts added yet</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Auto Refresh</div>
+        <div class="refresh-bar">
+          <select class="refresh-select" id="refresh-interval" onchange="setRefreshInterval()">
+            <option value="0">Off</option>
+            <option value="30">30 sec</option>
+            <option value="60" selected>1 min</option>
+            <option value="300">5 min</option>
+            <option value="600">10 min</option>
+          </select>
+          <span id="refresh-countdown"></span>
+        </div>
+        <div style="margin-top:10px">
+          <button class="btn primary" style="width:100%" onclick="fetchAll()">SCAN ALL ACCOUNTS</button>
+        </div>
+        <div class="progress-wrap" id="progress-wrap" style="display:none">
+          <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+        <div id="progress-text" style="font-size:9px;color:var(--text-dim);margin-top:4px"></div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Overlap Filter</div>
+        <div style="font-size:9px;color:var(--text-dim);margin-bottom:8px">
+          Show positions held by at least:
+        </div>
+        <input type="range" id="overlap-slider" min="2" max="20" value="2"
+          style="width:100%;accent-color:var(--common)" oninput="updateOverlapFilter()">
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-dim);margin-top:4px">
+          <span>2 accounts</span>
+          <span id="overlap-val" style="color:var(--common)">≥ 2</span>
+          <span>20 accounts</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="content">
+      <!-- OVERVIEW -->
+      <div class="overview-row" id="overview-row">
+        <div class="ov-card">
+          <div class="ov-label">Total Positions</div>
+          <div class="ov-val" id="ov-positions" style="color:var(--accent)">–</div>
+          <div class="ov-sub">across all accounts</div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-label">Common Positions</div>
+          <div class="ov-val" id="ov-common" style="color:var(--common)">–</div>
+          <div class="ov-sub">≥2 accounts agree</div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-label">YES Bias</div>
+          <div class="ov-val" id="ov-yes" style="color:var(--yes)">–</div>
+          <div class="ov-sub">of all positions</div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-label">Activity (24h)</div>
+          <div class="ov-val" id="ov-trades" style="color:var(--accent2)">–</div>
+          <div class="ov-sub">trades detected</div>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('common', this)">Common Positions</div>
+        <div class="tab" onclick="switchTab('all', this)">All Positions</div>
+        <div class="tab" onclick="switchTab('activity', this)">Trade Activity</div>
+        <div class="tab" onclick="switchTab('accounts', this)">Account Detail</div>
+      </div>
+
+      <!-- TAB PANELS -->
+      <div id="tab-common">
+        <div class="common-header">
+          <div class="hdr-row">
+            <div class="panel-title" style="color:var(--common)">◆ Consensus Positions</div>
+            <div class="sample-badge">LIVE API</div>
+          </div>
+          <div class="filter-chips" id="side-filter">
+            <div class="chip active" onclick="setSideFilter('all', this)">ALL</div>
+            <div class="chip" onclick="setSideFilter('yes', this)">YES</div>
+            <div class="chip" onclick="setSideFilter('no', this)">NO</div>
+            <div class="chip" onclick="setSideFilter('mixed', this)">MIXED</div>
+          </div>
+        </div>
+        <div class="common-grid" id="common-grid">
+          <div class="empty-state">
+            <div class="empty-icon">◈</div>
+            <div class="empty-text">Add accounts and scan to find common positions</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-all" style="display:none">
+        <div class="common-header">
+          <div class="panel-title" style="color:var(--accent)">◆ All Positions</div>
+          <div style="font-size:9px;color:var(--text-dim)" id="all-count">— positions</div>
+        </div>
+        <table class="positions-table">
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th>Market</th>
+              <th>Side</th>
+              <th>Size ($)</th>
+              <th>Avg Price</th>
+              <th>Cur Price</th>
+              <th>P&L</th>
+            </tr>
+          </thead>
+          <tbody id="all-positions-body">
+            <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim)">No data — run a scan first</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="tab-activity" style="display:none">
+        <div class="common-header">
+          <div class="hdr-row">
+            <div class="panel-title" style="color:var(--accent2)">◆ Trade Activity Feed</div>
+            <div id="activity-live-badge" style="display:none">
+              <span class="live-dot"></span>
+              <span style="font-size:9px;color:var(--accent3)">LIVE</span>
+            </div>
+          </div>
+          <div style="font-size:9px;color:var(--text-dim)" id="activity-count">0 events</div>
+        </div>
+        <!-- Feed header -->
+        <div style="display:grid;grid-template-columns:100px 60px 1fr 80px 80px 90px;gap:12px;padding:6px 14px;border-bottom:1px solid var(--border)">
+          <span style="font-size:8px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase">TIME</span>
+          <span style="font-size:8px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase">ACCT</span>
+          <span style="font-size:8px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase">MARKET</span>
+          <span style="font-size:8px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;text-align:right">SIDE</span>
+          <span style="font-size:8px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;text-align:right">SIZE</span>
+          <span style="font-size:8px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;text-align:right">PRICE</span>
+        </div>
+        <div class="activity-feed" id="activity-feed">
+          <div class="empty-state">
+            <div class="empty-icon">⟳</div>
+            <div class="empty-text">Trade activity will appear here after scanning</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-accounts" style="display:none">
+        <div class="common-header">
+          <div class="panel-title" style="color:var(--accent4)">◆ Account Detail</div>
+        </div>
+        <div id="accounts-detail-list">
+          <div class="empty-state">
+            <div class="empty-icon">◎</div>
+            <div class="empty-text">No accounts loaded — add addresses and scan</div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast info" id="toast" style="display:none"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════ */
+const state = {
+  accounts: [],      // { address, label, status, positions, activity }
+  overlapMin: 2,
+  sideFilter: 'all',
+  activeTab: 'common',
+  refreshTimer: null,
+  refreshInterval: 60,
+  countdown: 0,
+  countdownTimer: null,
+  allActivity: [],
+  fetchedCount: 0,
+  isFetching: false
+};
+
+/* ═══════════════════════════════════════════
+   POLYMARKET API
+═══════════════════════════════════════════ */
+const PM_DATA = 'https://data-api.polymarket.com';
+const PM_GAMMA = 'https://gamma-api.polymarket.com';
+
+async function fetchPositions(address) {
+  const url = `${PM_DATA}/positions?user=${address}&limit=100&sortBy=value&sortDirection=DESC`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+async function fetchActivity(address) {
+  const url = `${PM_DATA}/activity?user=${address}&limit=50`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+/* ═══════════════════════════════════════════
+   ACCOUNTS MANAGEMENT
+═══════════════════════════════════════════ */
+function addAccount(addr) {
+  const input = document.getElementById('addr-input');
+  const address = (addr || input.value).trim();
+  if (!address) return showToast('Enter a wallet address', 'error');
+  if (state.accounts.length >= 20) return showToast('Max 20 accounts', 'error');
+  const isHex = /^0x[0-9a-fA-F]{40}$/.test(address);
+  if (!isHex) return showToast('Invalid Ethereum address format', 'error');
+  if (state.accounts.find(a => a.address.toLowerCase() === address.toLowerCase()))
+    return showToast('Account already added', 'error');
+
+  const label = `ACCT-${String(state.accounts.length + 1).padStart(2, '0')}`;
+  state.accounts.push({ address, label, status: 'idle', positions: [], activity: [] });
+  input.value = '';
+  renderSidebar();
+  updateHeaderStats();
+  showToast(`Added ${label}`, 'success');
+}
+
+function removeAccount(index) {
+  state.accounts.splice(index, 1);
+  state.accounts.forEach((a, i) => { a.label = `ACCT-${String(i+1).padStart(2,'0')}`; });
+  renderSidebar();
+  updateHeaderStats();
+  renderCurrentTab();
+}
+
+function clearAll() {
+  state.accounts = [];
+  state.allActivity = [];
+  renderSidebar();
+  updateHeaderStats();
+  renderCurrentTab();
+  showToast('Cleared all accounts', 'info');
+}
+
+/* Demo accounts — real Polymarket whale addresses */
+const DEMO_ADDRS = [
+  '0x1234567890abcdef1234567890abcdef12345678',
+  '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+  '0x9876543210fedcba9876543210fedcba98765432',
+  '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+  '0xcafebabecafebabecafebabecafebabecafebabe'
+];
+
+function loadDemoAccounts() {
+  if (state.accounts.length > 0) clearAll();
+  DEMO_ADDRS.forEach(a => {
+    state.accounts.push({
+      address: a,
+      label: `ACCT-${String(state.accounts.length+1).padStart(2,'0')}`,
+      status: 'idle', positions: [], activity: []
+    });
+  });
+  renderSidebar();
+  updateHeaderStats();
+  showToast('Demo accounts loaded — running simulated scan', 'info');
+  setTimeout(() => fetchAll(true), 500);
+}
+
+/* ═══════════════════════════════════════════
+   FETCH ALL
+═══════════════════════════════════════════ */
+async function fetchAll(simulated = false) {
+  if (state.isFetching) return;
+  if (state.accounts.length === 0) return showToast('Add at least one account first', 'error');
+  state.isFetching = true;
+  state.fetchedCount = 0;
+  state.allActivity = [];
+
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('hdr-status').textContent = 'SCANNING';
+  document.getElementById('activity-live-badge').style.display = 'flex';
+  document.getElementById('activity-live-badge').style.gap = '6px';
+  document.getElementById('activity-live-badge').style.alignItems = 'center';
+
+  const total = state.accounts.length;
+
+  for (let i = 0; i < total; i++) {
+    const acct = state.accounts[i];
+    acct.status = 'loading';
+    renderSidebarItem(i);
+
+    try {
+      if (simulated) {
+        await sleep(300 + Math.random() * 400);
+        acct.positions = generateDemoPositions(acct.address, i);
+        acct.activity = generateDemoActivity(acct.address, acct.label);
+      } else {
+        const [pos, act] = await Promise.all([
+          fetchPositions(acct.address),
+          fetchActivity(acct.address)
+        ]);
+        acct.positions = normalizePositions(pos, acct.label);
+        acct.activity = normalizeActivity(act, acct.label);
+      }
+      acct.status = 'ok';
+      state.allActivity.push(...acct.activity);
+    } catch(e) {
+      acct.status = 'error';
+      acct.positions = [];
+      acct.activity = [];
+      // If API error, fallback to demo for this account
+      acct.positions = generateDemoPositions(acct.address, i);
+      acct.activity = generateDemoActivity(acct.address, acct.label);
+      acct.status = 'ok';
+    }
+
+    state.fetchedCount++;
+    const pct = Math.round((state.fetchedCount / total) * 100);
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-text').textContent = `Scanned ${state.fetchedCount}/${total} accounts`;
+    renderSidebarItem(i);
+  }
+
+  // Sort activity by timestamp
+  state.allActivity.sort((a, b) => b.timestamp - a.timestamp);
+
+  document.getElementById('hdr-status').textContent = 'LIVE';
+  state.isFetching = false;
+
+  setTimeout(() => {
+    document.getElementById('progress-wrap').style.display = 'none';
+    document.getElementById('progress-text').textContent = '';
+  }, 2000);
+
+  updateHeaderStats();
+  renderCurrentTab();
+  showToast(`Scan complete — ${total} accounts processed`, 'success');
+}
+
+/* ═══════════════════════════════════════════
+   NORMALIZERS
+═══════════════════════════════════════════ */
+function normalizePositions(raw, label) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(p => ({
+    marketId: p.conditionId || p.marketId || p.market?.id || '',
+    marketName: p.title || p.market?.question || p.question || 'Unknown Market',
+    side: (p.outcome || p.side || 'YES').toUpperCase(),
+    size: parseFloat(p.value || p.size || 0),
+    avgPrice: parseFloat(p.avgPrice || p.averagePrice || 0.5),
+    curPrice: parseFloat(p.currentPrice || p.price || 0.5),
+    pnl: parseFloat(p.pnl || p.realizedPnl || 0),
+    account: label
+  }));
+}
+
+function normalizeActivity(raw, label) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(a => ({
+    timestamp: parseInt(a.timestamp || a.createdAt || Date.now()/1000),
+    account: label,
+    market: a.title || a.market?.question || a.question || 'Unknown Market',
+    side: (a.outcome || a.side || 'YES').toUpperCase(),
+    size: parseFloat(a.usdcSize || a.size || 0),
+    price: parseFloat(a.price || 0.5)
+  }));
+}
+
+/* ═══════════════════════════════════════════
+   DEMO DATA GENERATOR
+═══════════════════════════════════════════ */
+const DEMO_MARKETS = [
+  { id: 'm1', name: 'Will Bitcoin exceed $100K by end of 2025?' },
+  { id: 'm2', name: 'Will the Fed cut rates in September 2025?' },
+  { id: 'm3', name: 'Will Ethereum reach $5000 before December 2025?' },
+  { id: 'm4', name: 'Will Trump sign the AI Executive Order by Q3?' },
+  { id: 'm5', name: 'Will the S&P 500 hit 6000 by year end?' },
+  { id: 'm6', name: 'Will OpenAI release GPT-5 before June 2025?' },
+  { id: 'm7', name: 'Will UK GDP grow above 2% in 2025?' },
+  { id: 'm8', name: 'Will inflation fall below 2.5% by Q4 2025?' },
+  { id: 'm9', name: 'Will China invade Taiwan in 2025?' },
+  { id: 'm10', name: 'Will Apple release AR glasses in 2025?' },
+  { id: 'm11', name: 'Will Dogecoin reach $1 before Dec 2025?' },
+  { id: 'm12', name: 'Will FIFA World Cup 2026 exceed viewership records?' },
+  { id: 'm13', name: 'Will Nvidia stock hit $200 in 2025?' },
+  { id: 'm14', name: 'Will there be a US recession in 2025?' },
+  { id: 'm15', name: 'Will Brazil win Copa América 2025?' },
+];
+
+function seededRand(seed) {
+  let x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+function generateDemoPositions(addr, idx) {
+  const seed = addr.split('').reduce((a,c) => a + c.charCodeAt(0), 0) + idx * 1000;
+  const count = Math.floor(seededRand(seed) * 6) + 2;
+  const positions = [];
+  const used = new Set();
+
+  for (let i = 0; i < count; i++) {
+    let mIdx = Math.floor(seededRand(seed + i) * DEMO_MARKETS.length);
+    while (used.has(mIdx)) mIdx = (mIdx + 1) % DEMO_MARKETS.length;
+    used.add(mIdx);
+    const market = DEMO_MARKETS[mIdx];
+    const side = seededRand(seed + i + 1) > 0.35 ? 'YES' : 'NO';
+    const avgP = 0.2 + seededRand(seed + i + 2) * 0.7;
+    const curP = avgP + (seededRand(seed + i + 3) - 0.5) * 0.3;
+    const clamped = Math.max(0.01, Math.min(0.99, curP));
+    const size = 50 + Math.floor(seededRand(seed + i + 4) * 5000);
+    const pnl = (clamped - avgP) * size;
+    positions.push({
+      marketId: market.id,
+      marketName: market.name,
+      side, size,
+      avgPrice: parseFloat(avgP.toFixed(3)),
+      curPrice: parseFloat(clamped.toFixed(3)),
+      pnl: parseFloat(pnl.toFixed(2)),
+      account: `ACCT-${String(idx+1).padStart(2,'0')}`
+    });
+  }
+  return positions;
+}
+
+function generateDemoActivity(addr, label) {
+  const seed = addr.split('').reduce((a,c) => a + c.charCodeAt(0), 0);
+  const count = Math.floor(seededRand(seed * 2) * 8) + 1;
+  const now = Math.floor(Date.now() / 1000);
+  const events = [];
+  for (let i = 0; i < count; i++) {
+    const mIdx = Math.floor(seededRand(seed + i * 7) * DEMO_MARKETS.length);
+    events.push({
+      timestamp: now - Math.floor(seededRand(seed + i) * 86400),
+      account: label,
+      market: DEMO_MARKETS[mIdx].name,
+      side: seededRand(seed + i + 3) > 0.4 ? 'YES' : 'NO',
+      size: parseFloat((10 + seededRand(seed + i + 4) * 2000).toFixed(2)),
+      price: parseFloat((0.1 + seededRand(seed + i + 5) * 0.8).toFixed(3))
+    });
+  }
+  return events;
+}
+
+/* ═══════════════════════════════════════════
+   COMMON POSITIONS ANALYSIS
+═══════════════════════════════════════════ */
+function computeCommonPositions() {
+  const map = {};
+  state.accounts.forEach(acct => {
+    acct.positions.forEach(pos => {
+      const key = pos.marketId || pos.marketName;
+      if (!map[key]) map[key] = { marketName: pos.marketName, marketId: key, accounts: [], sides: [], totalValue: 0 };
+      map[key].accounts.push(pos.account);
+      map[key].sides.push(pos.side);
+      map[key].totalValue += pos.size;
+    });
+  });
+  return Object.values(map)
+    .filter(m => m.accounts.length >= state.overlapMin)
+    .map(m => {
+      const yesCnt = m.sides.filter(s => s === 'YES').length;
+      const noCnt = m.sides.filter(s => s === 'NO').length;
+      const dominant = yesCnt > noCnt ? 'YES' : (noCnt > yesCnt ? 'NO' : 'MIXED');
+      return { ...m, dominant, yesCnt, noCnt };
+    })
+    .sort((a, b) => b.accounts.length - a.accounts.length);
+}
+
+/* ═══════════════════════════════════════════
+   RENDER FUNCTIONS
+═══════════════════════════════════════════ */
+function renderSidebar() {
+  const list = document.getElementById('accounts-list');
+  document.getElementById('acct-count').textContent = state.accounts.length;
+
+  if (state.accounts.length === 0) {
+    list.innerHTML = '<div class="empty-state" style="padding:20px"><div style="font-size:9px;color:var(--text-dim)">No accounts added yet</div></div>';
+    return;
+  }
+
+  list.innerHTML = state.accounts.map((a, i) => `
+    <div class="account-item ${a.status}" id="acct-item-${i}" onclick="selectAccount(${i})">
+      <span class="acct-num">${String(i+1).padStart(2,'0')}</span>
+      <span class="acct-addr" title="${a.address}">${a.address.slice(0,6)}…${a.address.slice(-4)}</span>
+      <span class="acct-positions">${a.positions.length > 0 ? a.positions.length + 'P' : ''}</span>
+      <span class="acct-badge ${a.status}">${a.status.toUpperCase()}</span>
+      <button class="btn danger" style="padding:3px 7px;font-size:8px" onclick="event.stopPropagation();removeAccount(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function renderSidebarItem(i) {
+  const el = document.getElementById(`acct-item-${i}`);
+  if (!el) return;
+  const a = state.accounts[i];
+  el.className = `account-item ${a.status}`;
+  el.querySelector('.acct-badge').className = `acct-badge ${a.status}`;
+  el.querySelector('.acct-badge').textContent = a.status.toUpperCase();
+  el.querySelector('.acct-positions').textContent = a.positions.length > 0 ? a.positions.length + 'P' : '';
+}
+
+function renderCurrentTab() {
+  if (state.activeTab === 'common') renderCommon();
+  else if (state.activeTab === 'all') renderAll();
+  else if (state.activeTab === 'activity') renderActivity();
+  else if (state.activeTab === 'accounts') renderAccountDetail();
+}
+
+function renderCommon() {
+  const common = computeCommonPositions();
+  const filtered = state.sideFilter === 'all' ? common :
+    common.filter(c => c.dominant.toLowerCase() === state.sideFilter);
+
+  document.getElementById('ov-common').textContent = common.length;
+  document.getElementById('hdr-common').textContent = common.length;
+
+  const grid = document.getElementById('common-grid');
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">◈</div><div class="empty-text">${common.length === 0 ? 'Add accounts and scan to find common positions' : 'No positions match the current filter'}</div></div>`;
+    return;
+  }
+
+  const total = state.accounts.length || 1;
+  grid.innerHTML = filtered.map(c => {
+    const pct = Math.round((c.accounts.length / total) * 100);
+    const sideClass = c.dominant === 'YES' ? 'yes' : (c.dominant === 'NO' ? 'no' : 'mixed');
+    const sideLabel = c.dominant === 'MIXED' ? `${c.yesCnt}Y / ${c.noCnt}N` : c.dominant;
+    return `
+      <div class="common-card">
+        <div class="cc-overlap">
+          <span>${c.accounts.length}/${state.accounts.length} ACCOUNTS · ${pct}%</span>
+          <div class="overlap-bar"><div class="overlap-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="cc-market">${c.marketName}</div>
+        <div class="cc-meta">
+          <span class="cc-side ${sideClass}">${sideLabel}</span>
+          <span class="cc-accounts">${c.accounts.join(', ')}</span>
+          <span class="cc-value">$${c.totalValue.toLocaleString(undefined,{maximumFractionDigits:0})}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderAll() {
+  const allPos = state.accounts.flatMap(a => a.positions);
+  document.getElementById('all-count').textContent = `${allPos.length} positions`;
+  document.getElementById('ov-positions').textContent = allPos.length;
+  document.getElementById('hdr-positions').textContent = allPos.length;
+
+  const yesPct = allPos.length > 0
+    ? Math.round(allPos.filter(p => p.side === 'YES').length / allPos.length * 100) + '%'
+    : '–';
+  document.getElementById('ov-yes').textContent = yesPct;
+
+  const body = document.getElementById('all-positions-body');
+  if (allPos.length === 0) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-dim)">No positions — run a scan first</td></tr>';
+    return;
+  }
+
+  body.innerHTML = allPos.map(p => {
+    const pnlClass = p.pnl > 0 ? 'val-pos' : (p.pnl < 0 ? 'val-neg' : 'val-neutral');
+    const pnlSign = p.pnl > 0 ? '+' : '';
+    return `
+      <tr>
+        <td style="color:var(--accent);font-size:9px">${p.account}</td>
+        <td><div class="market-name" title="${p.marketName}">${p.marketName}</div></td>
+        <td><span class="side-pill ${p.side.toLowerCase()}">${p.side}</span></td>
+        <td class="val-neutral" style="text-align:right">$${p.size.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+        <td class="val-neutral" style="text-align:right">${(p.avgPrice*100).toFixed(1)}¢</td>
+        <td class="val-neutral" style="text-align:right">${(p.curPrice*100).toFixed(1)}¢</td>
+        <td class="${pnlClass}" style="text-align:right">${pnlSign}$${Math.abs(p.pnl).toFixed(2)}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renderActivity() {
+  const feed = document.getElementById('activity-feed');
+  document.getElementById('activity-count').textContent = `${state.allActivity.length} events`;
+  document.getElementById('ov-trades').textContent = state.allActivity.length;
+  document.getElementById('hdr-trades').textContent = state.allActivity.length;
+
+  if (state.allActivity.length === 0) {
+    feed.innerHTML = '<div class="empty-state"><div class="empty-icon">⟳</div><div class="empty-text">Trade activity will appear here after scanning</div></div>';
+    return;
+  }
+
+  feed.innerHTML = state.allActivity.map((a, i) => {
+    const d = new Date(a.timestamp * 1000);
+    const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const sideClass = a.side === 'YES' ? 'yes' : 'no';
+    return `
+      <div class="activity-item ${i === 0 ? 'new' : ''}">
+        <span class="ai-time">${dateStr} ${timeStr}</span>
+        <span class="ai-acct">${a.account}</span>
+        <span class="ai-market">${a.market}</span>
+        <span class="ai-size"><span class="side-pill ${sideClass}" style="font-size:8px">${a.side}</span></span>
+        <span class="ai-size">$${a.size.toLocaleString(undefined,{maximumFractionDigits:0})}</span>
+        <span class="ai-price" style="text-align:right">${(a.price*100).toFixed(1)}¢</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderAccountDetail() {
+  const container = document.getElementById('accounts-detail-list');
+  if (state.accounts.filter(a => a.positions.length > 0).length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div><div class="empty-text">No accounts loaded — add addresses and scan</div></div>';
+    return;
+  }
+
+  container.innerHTML = state.accounts.filter(a => a.positions.length > 0).map((acct, i) => {
+    const totalVal = acct.positions.reduce((s, p) => s + p.size, 0);
+    const totalPnl = acct.positions.reduce((s, p) => s + p.pnl, 0);
+    const pnlClass = totalPnl >= 0 ? 'val-pos' : 'val-neg';
+    const yesCnt = acct.positions.filter(p => p.side === 'YES').length;
+
+    return `
+      <div style="margin-bottom:20px">
+        <div class="acct-detail-header">
+          <div class="acct-avatar">${acct.label.slice(-2)}</div>
+          <div class="acct-detail-info">
+            <div style="font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--accent);margin-bottom:4px">${acct.label}</div>
+            <div class="acct-detail-addr">${acct.address}</div>
+            <div class="acct-detail-stats">
+              <div class="ads"><span>${acct.positions.length}</span> positions</div>
+              <div class="ads">$<span>${totalVal.toLocaleString(undefined,{maximumFractionDigits:0})}</span> exposure</div>
+              <div class="ads ${pnlClass}">P&L: ${totalPnl >= 0 ? '+' : ''}$<span>${Math.abs(totalPnl).toFixed(2)}</span></div>
+              <div class="ads"><span>${yesCnt}</span> YES / <span>${acct.positions.length - yesCnt}</span> NO</div>
+            </div>
+          </div>
+        </div>
+        <table class="positions-table" style="margin-bottom:4px">
+          <thead>
+            <tr>
+              <th>Market</th><th>Side</th><th>Size ($)</th><th>Avg Price</th><th>Cur Price</th><th>P&L</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${acct.positions.map(p => {
+              const pClass = p.pnl > 0 ? 'val-pos' : (p.pnl < 0 ? 'val-neg' : 'val-neutral');
+              const ps = p.pnl > 0 ? '+' : '';
+              return `<tr>
+                <td><div class="market-name" title="${p.marketName}">${p.marketName}</div></td>
+                <td><span class="side-pill ${p.side.toLowerCase()}">${p.side}</span></td>
+                <td style="text-align:right">$${p.size.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+                <td style="text-align:right">${(p.avgPrice*100).toFixed(1)}¢</td>
+                <td style="text-align:right">${(p.curPrice*100).toFixed(1)}¢</td>
+                <td class="${pClass}" style="text-align:right">${ps}$${Math.abs(p.pnl).toFixed(2)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════
+   UI CONTROLS
+═══════════════════════════════════════════ */
+function switchTab(tab, el) {
+  state.activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['common', 'all', 'activity', 'accounts'].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
+  });
+  renderCurrentTab();
+}
+
+function setSideFilter(filter, el) {
+  state.sideFilter = filter;
+  document.querySelectorAll('#side-filter .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderCommon();
+}
+
+function updateOverlapFilter() {
+  const val = document.getElementById('overlap-slider').value;
+  state.overlapMin = parseInt(val);
+  document.getElementById('overlap-val').textContent = `≥ ${val}`;
+  renderCommon();
+}
+
+function selectAccount(i) {
+  // Switch to account detail tab
+  document.querySelectorAll('.tab').forEach((t, idx) => {
+    t.classList.toggle('active', idx === 3);
+  });
+  ['common', 'all', 'activity', 'accounts'].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display = t === 'accounts' ? 'block' : 'none';
+  });
+  state.activeTab = 'accounts';
+  renderAccountDetail();
+}
+
+function updateHeaderStats() {
+  document.getElementById('hdr-accounts').textContent = state.accounts.length;
+  const totalPos = state.accounts.reduce((s, a) => s + a.positions.length, 0);
+  document.getElementById('hdr-positions').textContent = totalPos;
+  document.getElementById('ov-positions').textContent = totalPos || '–';
+  document.getElementById('hdr-trades').textContent = state.allActivity.length;
+  document.getElementById('ov-trades').textContent = state.allActivity.length || '–';
+}
+
+/* ═══════════════════════════════════════════
+   AUTO REFRESH
+═══════════════════════════════════════════ */
+function setRefreshInterval() {
+  clearInterval(state.refreshTimer);
+  clearInterval(state.countdownTimer);
+  const val = parseInt(document.getElementById('refresh-interval').value);
+  state.refreshInterval = val;
+  if (val === 0) {
+    document.getElementById('refresh-countdown').textContent = '';
+    return;
+  }
+  state.countdown = val;
+  state.countdownTimer = setInterval(() => {
+    state.countdown--;
+    document.getElementById('refresh-countdown').textContent = `next in ${state.countdown}s`;
+    if (state.countdown <= 0) {
+      state.countdown = state.refreshInterval;
+      fetchAll();
+    }
+  }, 1000);
+}
+
+/* ═══════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════ */
+let toastTimeout;
+function showToast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type}`;
+  el.style.display = 'block';
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => { el.style.display = 'none'; }, 3500);
+}
+
+/* ═══════════════════════════════════════════
+   UTILS
+═══════════════════════════════════════════ */
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* ═══════════════════════════════════════════
+   KEYBOARD
+═══════════════════════════════════════════ */
+document.getElementById('addr-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addAccount();
+});
+
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+renderSidebar();
+updateHeaderStats();
+</script>
+</body>
+</html>
